@@ -47,10 +47,29 @@ int main(void)
 
   while (1)
   {
-	  LL_USART_TransmitData8(USART2, tx_data++);
-	  tx_data == ('z' + 1) ? tx_data = 'a' : tx_data;
+	  //zakomentujem odosielanie abecedy aby som videl co som stlacil v callback funkcii
+	  //LL_USART_TransmitData8(USART2, tx_data++);
+	  //tx_data == ('z' + 1) ? tx_data = 'a' : tx_data;
 
-	  LL_mDelay(50);
+	  int i;
+
+	  //ak LED je zapnuta
+	  if((LL_GPIO_ReadInputPort(GPIOB) & (1 << 3)) >> 3){
+		  uint8_t spravaON[7] = "ledON  "; //ano dve medzeri aby bolo prehladnejsie :D
+		  for(i=0;i<7;i++){
+			  LL_USART_TransmitData8(USART2, spravaON[i]);  //Poslem cely array charov na vypis
+			  LL_mDelay(200);
+		  }
+	  //ak LED je vypnuta
+	  }else{
+		  uint8_t spravaOFF[8] = "ledOFF  ";
+		  for(i=0;i<8;i++){
+			  LL_USART_TransmitData8(USART2, spravaOFF[i]);  //Poslem cely array charov na vypis
+			  LL_mDelay(200);
+		  }
+	  }
+
+	  LL_mDelay(1000);
   }
 }
 
@@ -93,26 +112,58 @@ void SystemClock_Config(void)
 void process_serial_data(uint8_t ch)
 {
 	static uint8_t count = 0;
+	static uint8_t ledON[5];
+	static uint8_t ledOFF[6];
+	int i;
+	//LL_USART_TransmitData8(USART2, ch);
 
-	if(ch == 'a')
-	{
+	//Ak led svieti
+	if((LL_GPIO_ReadInputPort(GPIOB) & (1 << 3)) >> 3){
+		ledOFF[count] = ch;  //postupne pridavam do arrayu chary
 		count++;
-
-		if(count >= 3)
-		{
-			if((LL_GPIO_ReadInputPort(GPIOB) & (1 << 3)) >> 3)
-			{
-				LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_3);
-			}
-			else
-			{
-				LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_3);
-			}
-
+		if(strcmp(ledOFF, "ledOFF") == 0){
+			LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_3);  //ak sa array charov zhoduje s ledOFF tak zhasne
+		}
+		//resetovacia podmienka pre index pridavania charrov a tak isto aj premazanie arrayu
+		//ak prve pismeno bude 'l' tak vtedy zacne ratat 6 charov a potom porovna, 'l' funguje ako spustac
+		if(count == 6 || ledOFF[0]!='l'){
 			count = 0;
-			return;
+			for(i=0;i<7;i++){
+				ledOFF[i] = 0;
+			}
+		}
+	//Ak je ledka zhasnuta
+	}else{
+		ledON[count] = ch;  //postupne pridava do arrayu charov
+		count++;
+		if(strcmp(ledON, "ledON") == 0){
+			LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_3);   //ak sa array charov zhoduje s ledON tak sa zapne
+		}
+		//resetovacia podmienka pre index pridavania charrov a tak isto aj premazanie arrayu
+		//ak prve pismeno bude 'l' tak vtedy zacne ratat 5 charov a potom porovna, 'l' funguje ako spustac
+		if(count == 5 || ledON[0]!='l'){
+			count = 0;
+			for(i=0;i<6;i++){
+				ledON[i] = 0;
+			}
 		}
 	}
+
+	/* povodne zadanie, s f a n charmi
+	if(ch == 'f')
+	{
+		//ak teda pride 'f' tak resetnem LEDku na pine 3 a vzaroven ju aj odoslem aby som v putty videl co som stlacil
+		LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_3);
+		LL_USART_TransmitData8(USART2, ch);
+	}
+
+	if(ch == 'n'){
+		//tak isto ak pride 'n' tak LEDku setnem na pine 3 a poslem cez usart do PC ten charakter aby sa vypisal v putty
+		LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_3);
+		LL_USART_TransmitData8(USART2, ch);
+	}
+	*/
+
 }
 
 
